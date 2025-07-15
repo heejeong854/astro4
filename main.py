@@ -1,3 +1,4 @@
+import numpy as np
 
 n = 200
 x0 = np.random.uniform(-1, 1, n)
