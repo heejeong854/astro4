@@ -2,84 +2,47 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 
-st.title("주계열성별 시간에 따른 생명가능지대 시뮬레이션 (원 + 수직선)")
+st.title("조석력 주기와 해수면 높이 시뮬레이션")
+st.write("현재 시간: 2025년 7월 15일 오후 8:07 KST")
 
-# 주계열성 선택
-spectral_type = st.selectbox("별 분광형 선택", ["M형", "K형", "G형 (태양형)", "F형"])
+# 상수
+G = 6.67430e-11  # 만유인력 상수 (m³ kg⁻¹ s⁻²)
+M_earth = 5.972e24  # 지구 질량 (kg)
+M_moon = 7.342e22  # 달 질량 (kg)
+ocean_depth = 3800  # 평균 해수 깊이 (m), 단순화용
 
-# 행성 궤도 입력
-planet_orbit = st.slider("행성 궤도 반경 (AU)", 0.1, 5.0, 1.0, step=0.01)
+# 사용자 입력
+days = st.slider("시간 (일)", 0, 27, 0)  # 약 27.3일 공전 주기
+distance_variation = 363300 + 46600 * np.cos(2 * np.pi * days / 27.3)  # 근지점(363300km)에서 원지점(410000km)까지 변화
+distance = distance_variation * 1000  # m 단위
 
-# 시간 슬라이더 (억 년 단위)
-time_max = {"M형": 300, "K형": 200, "G형 (태양형)": 100, "F형": 50}
-max_age = time_max[spectral_type]
-time = st.slider("시간 (억 년)", 0, max_age, 0)
+# 조석력 계산 (F = G * m1 * m2 / r², r의 세제곱에 비례)
+tidal_force = G * M_earth * M_moon / (distance ** 3)  # 조석력은 r³에 반비례
+sea_level_change = tidal_force * ocean_depth / 1e12  # 간단한 해수면 높이 모델 (상수 조정)
 
-# 광도 진화 파라미터 (초기광도, 증가율)
-params = {
-    "M형": (0.08, 0.01),
-    "K형": (0.4, 0.05),
-    "G형 (태양형)": (1.0, 0.10),
-    "F형": (2.0, 0.15)
-}
-L0, rate = params[spectral_type]
+# 시각화
+fig, ax1 = plt.subplots(figsize=(8, 5))
 
-# 기본 HZ 거리 (태양 대비 거리 기준)
-hz_base = {
-    "M형": (0.1, 0.3),
-    "K형": (0.4, 0.8),
-    "G형 (태양형)": (0.95, 1.67),
-    "F형": (1.5, 2.2)
-}
-hz_inner_base, hz_outer_base = hz_base[spectral_type]
+# 조석력 (왼쪽 y축)
+ax1.plot(range(28), [G * M_earth * M_moon / ((363300 + 46600 * np.cos(2 * np.pi * d / 27.3) * 1000) ** 3) for d in range(28)], 
+         color='blue', label='조석력 (상대값)')
+ax1.set_xlabel("일수 (일)")
+ax1.set_ylabel("조석력 (상대값)", color='blue')
+ax1.tick_params(axis='y', labelcolor='blue')
 
-# 현재 시간 광도 계산 (지수 증가 근사, 음수 방지)
-luminosity = max(L0 * np.exp(rate * time), 0.01)  # 최소 0.01로 제한
+# 해수면 높이 (오른쪽 y축)
+ax2 = ax1.twinx()
+ax2.bar(range(28), [G * M_earth * M_moon / ((363300 + 46600 * np.cos(2 * np.pi * d / 27.3) * 1000) ** 3) * ocean_depth / 1e12 for d in range(28)], 
+        color='green', alpha=0.3, label='해수면 높이 (m)')
+ax2.set_ylabel("해수면 높이 변화 (m)", color='green')
+ax2.tick_params(axis='y', labelcolor='green')
 
-# 현재 HZ 거리 계산
-hz_inner = np.sqrt(luminosity) * hz_inner_base
-hz_outer = np.sqrt(luminosity) * hz_outer_base
-
-# 행성 생명가능 여부
-habitable = hz_inner <= planet_orbit <= hz_outer
-
-# --- 2D 평면 시각화 (별 + HZ 원 + 행성 수직선) ---
-fig, ax = plt.subplots(figsize=(6, 6))
-
-# 별 (중앙 노란 원)
-star = plt.Circle((0, 0), 0.1, color='yellow')
-ax.add_artist(star)
-
-# HZ 외부 원 (연한 초록, 투명)
-hz_outer_circle = plt.Circle((0, 0), hz_outer, color='green', alpha=0.2)
-ax.add_artist(hz_outer_circle)
-
-# HZ 내부 경계 (초록 점선)
-hz_inner_circle = plt.Circle((0, 0), hz_inner, edgecolor='green', facecolor='none', linewidth=2, linestyle='--')
-ax.add_artist(hz_inner_circle)
-
-# 행성 위치 수직선 (파란색, y 범위 ±1.3 * hz_outer)
-line_ymin = -hz_outer * 1.3
-line_ymax = hz_outer * 1.3
-ax.vlines(planet_orbit, line_ymin, line_ymax, color='blue', linewidth=3, label='행성 궤도')
-
-# 행성 생명가능 여부 텍스트 표시 (위쪽, 겹침 방지)
-color_text = "green" if habitable else "red"
-status_text = "🌿 생명가능지대 내" if habitable else "⚠️ 생명가능지대 밖"
-ax.text(planet_orbit, line_ymax * 1.05, status_text, color=color_text,
-        fontsize=12, fontweight='bold', ha='center', va='bottom')
-
-# 축 설정 및 비율 조정
-ax.set_xlim(-hz_outer * 1.5, hz_outer * 1.5)
-ax.set_ylim(line_ymin * 1.1, line_ymax * 1.2)
-ax.set_aspect('equal')
-ax.axis('off')
-ax.legend(loc='upper right', fontsize=10)
-
-# Streamlit에 그래프 출력
+# 레이아웃 조정
+fig.tight_layout()
+fig.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), ncol=2)
 st.pyplot(fig)
 
-# 추가 정보 표시
-st.write(f"**현재 광도**: {luminosity:.2f} L☉")
-st.write(f"**HZ 내경계**: {hz_inner:.2f} AU, **외경계**: {hz_outer:.2f} AU")
-st.write(f"**행성 궤도**: {planet_orbit:.2f} AU")
+# 추가 정보
+st.write(f"현재 거리: {distance_variation:.0f} km")
+st.write(f"조석력: {tidal_force:.2e} N/m³")
+st.write(f"해수면 높이 변화: {sea_level_change:.2f} m")
