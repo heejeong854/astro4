@@ -1,7 +1,26 @@
+
 import streamlit as st
 from astropy.io import fits
+import tempfile
 
-hdul = fits.open("your_file.fits.fz")
+st.title("FITS.FZ 파일 업로드 및 열기")
+
+uploaded_file = st.file_uploader("FITS 또는 FITS.FZ 파일을 업로드하세요", type=["fits", "fz"])
+
+if uploaded_file is not None:
+    # 임시파일로 저장 (suffix는 확장자 맞게)
+    suffix = ".fits" if uploaded_file.name.endswith(".fits") else ".fits.fz"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
+        tmp_file.write(uploaded_file.read())
+        temp_filename = tmp_file.name
+
+    try:
+        hdul = fits.open(temp_filename)
+        st.success("✅ FITS 파일 열기 성공!")
+        st.write(hdul.info())
+        hdul.close()
+    except Exception as e:
+        st.error(f"❌ FITS 파일 열기 실패: {e}")
 
 from astropy.wcs import WCS
 import matplotlib.pyplot as plt
