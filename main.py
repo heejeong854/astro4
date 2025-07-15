@@ -1,5 +1,8 @@
 import streamlit as st
 from astropy.io import fits
+
+hdul = fits.open("your_file.fits.fz")
+
 from astropy.wcs import WCS
 import matplotlib.pyplot as plt
 
