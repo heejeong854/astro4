@@ -2,17 +2,30 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 
-st.title("생명가능지대 (Habitable Zone) 시뮬레이션 및 시각화")
+st.title("별 분광형 & 광도 기반 생명가능지대 (Habitable Zone) 시뮬레이션")
 
-# 별 광도 입력 (태양광도 대비)
-luminosity = st.slider("별의 광도 (태양 대비)", 0.1, 10.0, 1.0, step=0.1)
+# 1) 별 분광형 선택
+spectral_type = st.selectbox("별 분광형 선택", ["M형", "K형", "G형 (태양형)", "F형"])
 
-# 행성 궤도 반경 입력 (AU 단위)
+# 분광형별 기본 생명가능지대 거리 (AU)
+hz_table = {
+    "M형": (0.1, 0.3),
+    "K형": (0.4, 0.8),
+    "G형 (태양형)": (0.95, 1.67),
+    "F형": (1.5, 2.2)
+}
+
+hz_inner_base, hz_outer_base = hz_table[spectral_type]
+
+# 2) 별 광도 입력 (태양광도 대비)
+luminosity = st.slider("별의 광도 (태양 대비, 임의 값)", 0.1, 10.0, 1.0, step=0.1)
+
+# 광도에 따른 생명가능지대 스케일링 (별 분광형 기준값에 루트 광도 곱함)
+hz_inner = np.sqrt(luminosity) * hz_inner_base
+hz_outer = np.sqrt(luminosity) * hz_outer_base
+
+# 3) 행성 궤도 반경 입력 (AU 단위)
 planet_orbit = st.slider("행성 궤도 반경 (AU)", 0.1, 5.0, 1.0, step=0.01)
-
-# 생명가능지대 계산
-hz_inner = np.sqrt(luminosity) * 0.95
-hz_outer = np.sqrt(luminosity) * 1.67
 
 # 생명가능지대 내 여부 판단
 if hz_inner <= planet_orbit <= hz_outer:
@@ -21,7 +34,8 @@ else:
     habitability = "⚠️ 생명가능지대 밖에 있습니다."
 
 # 결과 출력
-st.write(f"별의 생명가능지대: {hz_inner:.2f} AU ~ {hz_outer:.2f} AU")
+st.write(f"선택한 별: {spectral_type}")
+st.write(f"별의 생명가능지대 범위: {hz_inner:.2f} AU ~ {hz_outer:.2f} AU")
 st.write(f"행성 궤도 반경: {planet_orbit:.2f} AU")
 st.write(habitability)
 
