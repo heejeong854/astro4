@@ -35,7 +35,7 @@ if uploaded_file is not None:
         # FITS 파일 열기
         st.title("FITS.FZ 파일 업로드 및 열기")
 
-uploaded_file = st.file_uploader("FITS 또는 FITS.FZ 파일을 업로드하세요", type=["fits", "fz"])
+        uploaded_file = st.file_uploader("FITS 또는 FITS.FZ 파일을 업로드하세요", type=["fits", "fz"])
 
 
         st.success("✅ FITS 파일 열기 성공!")
