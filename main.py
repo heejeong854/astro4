@@ -2,64 +2,56 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 
-# 빛의 속도 (km/s)
-c = 3e5
+st.title("우주 팽창 시각화 (허블법칙 기반 모델)")
 
-st.title("허블 상수 조절로 우주 팽창 시각화")
-
-# 배경 지식 텍스트
-st.markdown("""
+# 설명 텍스트 + 수식
+st.markdown(r"""
 ---
-**간단한 배경 지식**  
-- 후퇴속도 \(v\)는 허블 상수 \(H_0\)와 거리 \(d\)의 곱으로 계산됩니다:  
+**📘 배경 설명: 허블법칙 기반 팽창 모델**
+
+- **허블법칙:**  
 \[
-v = H_0 \times d
-\]  
-(\(v\): km/s, \(H_0\): km/s/Mpc, \(d\): Mpc)  
-- 적색편이 \(z\)는 후퇴속도를 빛의 속도로 나눈 값입니다:  
+v = H_0 \cdot d
+\]
+- 별이나 은하의 거리 \(d\)가 멀어질수록, 관측되는 후퇴 속도 \(v\)도 커진다는 법칙입니다.
+
+- 이 팽창 모형에서는 거리의 시간에 따른 변화를 단순화하여 다음과 같이 나타냅니다:
+
 \[
-z = \frac{v}{c}
-\]  
-(\(c\)는 빛의 속도, 약 \(3 \times 10^5\) km/s)  
+d(t) = d_0 \cdot \left(1 + \frac{H_0 \cdot t}{1000} \right)
+\]
+
+- 여기서 \(H_0\): 허블 상수 (km/s/Mpc),  
+  \(t\): 시간 (임의 단위),  
+  \(d_0\): 초기 거리
+
 ---
 """)
 
-# 허블 상수 조절 슬라이더 (50~100 km/s/Mpc)
-H0 = st.slider("허블 상수 H₀ (km/s/Mpc)", min_value=50, max_value=100, value=70)
+# 허블 상수 슬라이더
+H0 = st.slider("허블 상수 H₀ (팽창 계수, km/s/Mpc)", min_value=10, max_value=100, value=30, step=5)
+time_step = st.slider("시간 (임의 단위)", min_value=0, max_value=100, value=30)
 
-# 거리 범위 입력 (Mpc 단위)
-max_distance = st.number_input("최대 거리 (Mpc)", min_value=10, max_value=1000, value=500, step=10)
+# 초기 은하 위치 생성
+np.random.seed(0)
+n_galaxies = 100
+angles = np.random.uniform(0, 2*np.pi, n_galaxies)
+radii = np.random.uniform(0.2, 1.0, n_galaxies)
+x0 = radii * np.cos(angles)
+y0 = radii * np.sin(angles)
 
-# 거리 배열 생성
-distances = np.linspace(0, max_distance, 500)
+# 허블법칙 기반 팽창 반영
+scale = 1 + H0 * time_step / 1000
+x = x0 * scale
+y = y0 * scale
 
-# 후퇴속도 계산
-velocities = H0 * distances  # km/s
-
-# 적색편이 계산 (v/c)
-redshifts = velocities / c
-
-# 그래프 그리기
-fig, ax1 = plt.subplots(figsize=(10,5))
-
-color_v = 'tab:blue'
-ax1.set_xlabel('거리 (Mpc)')
-ax1.set_ylabel('후퇴속도 (km/s)', color=color_v)
-ax1.plot(distances, velocities, color=color_v, label='후퇴속도 v')
-ax1.tick_params(axis='y', labelcolor=color_v)
-ax1.grid(True)
-
-ax2 = ax1.twinx()
-color_z = 'tab:red'
-ax2.set_ylabel('적색편이 z', color=color_z)
-ax2.plot(distances, redshifts, color=color_z, label='적색편이 z')
-ax2.tick_params(axis='y', labelcolor=color_z)
-
-plt.title(f'허블 상수 H₀ = {H0} km/s/Mpc 일 때 우주 팽창')
-fig.tight_layout()
+# 시각화
+fig, ax = plt.subplots(figsize=(6, 6))
+ax.scatter(x, y, color='orange', s=10)
+ax.set_xlim(-2, 2)
+ax.set_ylim(-2, 2)
+ax.set_aspect('equal')
+ax.set_title(f"시간 {time_step}, 허블 상수 H₀ = {H0}")
+ax.axis('off')
 
 st.pyplot(fig)
-
-# 주요 값 출력
-st.write(f"최대 거리 {max_distance} Mpc 에서의 후퇴속도: {velocities[-1]:.1f} km/s")
-st.write(f"최대 거리 {max_distance} Mpc 에서의 적색편이: {redshifts[-1]:.5f}")
