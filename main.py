@@ -1,52 +1,51 @@
 import streamlit as st
 from astropy.io import fits
-from astropy.wcs import WCS
-import tempfile
 import matplotlib.pyplot as plt
 
-st.title("🪐 FITS 및 FITS.FZ 이미지 업로드 및 WCS 정보 확인 앱")
+st.title("성단 별 색-광도도 (C-M도) 그리기 앱")
 
-uploaded_file = st.file_uploader("FITS 또는 FITS.FZ 파일을 업로드하세요", type=["fits", "fz"])
+uploaded_file = st.file_uploader("FITS 테이블 파일 업로드 (별 색지수, 광도 포함)", type=["fits", "fit"])
 
 if uploaded_file is not None:
-    # 확장자에 맞춰 임시 파일 생성
-    suffix = ".fits" if uploaded_file.name.endswith(".fits") else ".fits.fz"
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
-        tmp_file.write(uploaded_file.read())
-        temp_filename = tmp_file.name
-
     try:
-        # FITS 파일 열기 (압축도 astropy가 자동 해제함)
-        hdul = fits.open(temp_filename)
-        st.success("✅ FITS 파일 열기 성공!")
+        hdul = fits.open(uploaded_file)
+        st.success("FITS 파일 열기 성공!")
 
-        # 헤더 정보 출력
-        header = hdul[0].header
-        st.write("### 📄 헤더 정보 (Header):")
-        st.text(repr(header))
+        # 첫 번째 테이블 HDU 찾기 (보통 1번에 있음)
+        table_hdu = None
+        for hdu in hdul:
+            if hdu.is_image:
+                continue
+            if hdu.data is not None:
+                table_hdu = hdu
+                break
 
-        # WCS 좌표계 정보 시도
-        try:
-            wcs = WCS(header)
-            st.write("### 🌌 WCS 좌표계 정보:")
-            st.text(wcs)
+        if table_hdu is None:
+            st.error("테이블 데이터를 찾을 수 없습니다.")
+        else:
+            data = table_hdu.data
 
-            # 이미지 데이터 시각화 (2차원 이상일 때만)
-            data = hdul[0].data
-            if data is not None and data.ndim >= 2:
-                fig = plt.figure()
-                ax = fig.add_subplot(111, projection=wcs)
-                ax.imshow(data, cmap='gray', origin='lower')
-                ax.set_xlabel('RA')
-                ax.set_ylabel('Dec')
-                st.pyplot(fig)
-            else:
-                st.warning("⚠️ 이미지 데이터가 없거나 2차원 이상이 아닙니다.")
+            st.write(f"테이블 컬럼 목록: {data.names}")
 
-        except Exception as e:
-            st.error(f"❌ WCS 정보 없음 또는 읽기 실패: {e}")
+            # 사용자에게 컬럼 선택 받기 (색지수, 광도)
+            color_index_col = st.selectbox("색지수 컬럼 선택 (예: B-V)", options=data.names)
+            magnitude_col = st.selectbox("광도 컬럼 선택 (예: Vmag)", options=data.names)
+
+            # 데이터 추출
+            color_index = data[color_index_col]
+            magnitude = data[magnitude_col]
+
+            # C-M도 그리기 (광도는 보통 아래로 갈수록 밝으므로 -magnitude)
+            fig, ax = plt.subplots()
+            ax.scatter(color_index, -magnitude, s=10, color='blue', alpha=0.7)
+            ax.set_xlabel(f"색지수 ({color_index_col})")
+            ax.set_ylabel(f"절대 등급 또는 광도 (-{magnitude_col})")
+            ax.set_title("색-광도도 (Color-Magnitude Diagram)")
+            ax.grid(True)
+
+            st.pyplot(fig)
 
         hdul.close()
 
     except Exception as e:
-        st.error(f"❌ FITS 파일 열기에 실패했습니다: {e}")
+        st.error(f"오류 발생: {e}")
