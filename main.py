@@ -27,14 +27,17 @@ st.write(habitability)
 
 # 시각화
 fig, ax = plt.subplots(figsize=(6,6))
+
 # 별 그리기 (중앙)
 star = plt.Circle((0,0), 0.1, color='yellow', label='별')
 ax.add_artist(star)
 
-# 생명가능지대 표시 (투명한 링)
-hz_ring = plt.Circle((0,0), hz_outer, color='green', alpha=0.2)
-ax.add_artist(hz_ring)
-hz_ring_inner = plt.Circle((0,0), hz_inner, color='white', alpha=1)
+# 생명가능지대 외곽 원 (연한 초록, 투명)
+hz_ring_outer = plt.Circle((0,0), hz_outer, color='green', alpha=0.2)
+ax.add_artist(hz_ring_outer)
+
+# 생명가능지대 내부 경계 (초록 점선 테두리만)
+hz_ring_inner = plt.Circle((0,0), hz_inner, edgecolor='green', facecolor='none', linewidth=2, linestyle='--')
 ax.add_artist(hz_ring_inner)
 
 # 행성 위치 표시
