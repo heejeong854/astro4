@@ -2,92 +2,65 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 
-st.title("별 분광형 & 광도 기반 생명가능지대 (Habitable Zone) 시뮬레이션")
+st.title("주계열성별 진화 속도 반영 생명가능지대 시뮬레이션")
 
-# 1) 별 분광형 선택
+# 주계열성 종류 선택
 spectral_type = st.selectbox("별 분광형 선택", ["M형", "K형", "G형 (태양형)", "F형"])
 
-# 분광형별 기본 생명가능지대 거리 (AU)
-hz_table = {
+# 행성 궤도 반경 입력
+planet_orbit = st.slider("행성 궤도 반경 (AU)", 0.1, 5.0, 1.0, step=0.01)
+
+# 광도 진화 파라미터 (초기광도, 증가율, 최대수명)
+params = {
+    "M형": (0.08, 0.01, 300),
+    "K형": (0.4, 0.05, 200),
+    "G형 (태양형)": (1.0, 0.10, 100),
+    "F형": (2.0, 0.15, 50)
+}
+
+L0, rate, max_age = params[spectral_type]
+
+# 시간 축 (0 ~ 최대 수명, 1000포인트)
+time = np.linspace(0, max_age, 1000)
+
+# 광도 변화 모델: 지수 증가 (근사)
+luminosity = L0 * np.exp(rate * time)
+
+# 분광형별 기본 생명가능지대 기준값 (태양 대비 거리)
+hz_base = {
     "M형": (0.1, 0.3),
     "K형": (0.4, 0.8),
     "G형 (태양형)": (0.95, 1.67),
     "F형": (1.5, 2.2)
 }
 
-hz_inner_base, hz_outer_base = hz_table[spectral_type]
+hz_inner_base, hz_outer_base = hz_base[spectral_type]
 
-# 2) 별 광도 입력 (태양광도 대비)
-luminosity = st.slider("별의 광도 (태양 대비, 임의 값)", 0.1, 10.0, 1.0, step=0.1)
-
-# 광도에 따른 생명가능지대 스케일링 (별 분광형 기준값에 루트 광도 곱함)
+# 시간에 따른 HZ 거리 변화
 hz_inner = np.sqrt(luminosity) * hz_inner_base
 hz_outer = np.sqrt(luminosity) * hz_outer_base
 
-# 3) 행성 궤도 반경 입력 (AU 단위)
-planet_orbit = st.slider("행성 궤도 반경 (AU)", 0.1, 5.0, 1.0, step=0.01)
+# 행성 궤도와 HZ 비교 - 생명가능 여부 배열 (1: 가능, 0: 불가)
+habitable = (planet_orbit >= hz_inner) & (planet_orbit <= hz_outer)
 
-# 생명가능지대 내 여부 판단
-if hz_inner <= planet_orbit <= hz_outer:
-    habitability = "🌿 생명가능지대 내에 있습니다!"
-else:
-    habitability = "⚠️ 생명가능지대 밖에 있습니다."
+# 시각화
 
-# 결과 출력
-st.write(f"선택한 별: {spectral_type}")
-st.write(f"별의 생명가능지대 범위: {hz_inner:.2f} AU ~ {hz_outer:.2f} AU")
-st.write(f"행성 궤도 반경: {planet_orbit:.2f} AU")
-st.write(habitability)
+fig, ax = plt.subplots(figsize=(10,5))
+ax.plot(time, hz_inner, label='HZ 내부 경계')
+ax.plot(time, hz_outer, label='HZ 외부 경계')
+ax.hlines(planet_orbit, 0, max_age, colors='blue', linestyles='dashed', label='행성 궤도')
 
-# --- 1. 2D 평면 시각화 ---
+# 생명가능 구간 색칠
+ax.fill_between(time, 0, planet_orbit + 1, where=habitable, color='green', alpha=0.3, label='생명가능 구간')
 
-fig1, ax1 = plt.subplots(figsize=(6,6))
+ax.set_xlabel("시간 (억 년)")
+ax.set_ylabel("거리 (AU)")
+ax.set_title(f"{spectral_type} 주계열성 생명가능지대 진화 시뮬레이션")
+ax.legend()
+ax.grid(True)
 
-# 별 (중앙 노란 원)
-star = plt.Circle((0,0), 0.1, color='yellow', label='별')
-ax1.add_artist(star)
+st.pyplot(fig)
 
-# 생명가능지대 외곽 (연한 초록 투명 원)
-hz_ring_outer = plt.Circle((0,0), hz_outer, color='green', alpha=0.2)
-ax1.add_artist(hz_ring_outer)
-
-# 생명가능지대 내부 경계 (초록 점선 테두리만)
-hz_ring_inner = plt.Circle((0,0), hz_inner, edgecolor='green', facecolor='none', linewidth=2, linestyle='--')
-ax1.add_artist(hz_ring_inner)
-
-# 행성 위치 (파란 원)
-planet = plt.Circle((planet_orbit, 0), 0.05, color='blue', label='행성')
-ax1.add_artist(planet)
-
-ax1.set_xlim(-2*hz_outer, 2*hz_outer)
-ax1.set_ylim(-2*hz_outer, 2*hz_outer)
-ax1.set_aspect('equal')
-ax1.set_title("생명가능지대 시각화 (2D 평면)")
-ax1.axis('off')
-
-# --- 2. 거리 축 그래프 ---
-
-fig2, ax2 = plt.subplots(figsize=(8, 2))
-
-# 생명가능지대 범위 회색 배경
-ax2.axvspan(hz_inner, hz_outer, color='gray', alpha=0.3, label='생명가능지대')
-
-# 행성 궤도 위치 수직선
-ax2.axvline(planet_orbit, color='blue', linewidth=3, label='행성 궤도')
-
-ax2.set_xlim(0, max(5, hz_outer + 0.5))
-ax2.set_ylim(0, 1)
-ax2.set_yticks([])
-ax2.set_xlabel("거리 (AU)")
-ax2.set_title("생명가능지대 범위와 행성 궤도 위치")
-
-ax2.legend(loc='upper right')
-
-# Streamlit에 두 그래프 함께 표시
-col1, col2 = st.columns(2)
-
-with col1:
-    st.pyplot(fig1)
-
-with col2:
-    st.pyplot(fig2)
+# 생명가능 기간 출력
+habitable_duration = time[habitable].size * (max_age / 1000)
+st.write(f"행성의 생명가능 기간: 약 {habitable_duration:.1f} 억 년")
