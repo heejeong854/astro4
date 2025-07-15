@@ -1,45 +1,50 @@
+import streamlit as st
 import numpy as np
+import matplotlib.pyplot as plt
 
-n = 200
-x0 = np.random.uniform(-1, 1, n)
-y0 = np.random.uniform(-1, 1, n)
-z0 = np.random.uniform(-1, 1, n)
+st.title("생명가능지대 (Habitable Zone) 시뮬레이션")
 
-# 팽창 비율
-scale = 1 + H0 * time / 1000
-x1 = x0 * scale
-y1 = y0 * scale
-z1 = z0 * scale
+# 별 광도 입력 (태양광도 대비)
+luminosity = st.slider("별의 광도 (태양 대비)", 0.1, 10.0, 1.0, step=0.1)
 
-# 3D 시각화
-fig = go.Figure()
+# 행성 궤도 반경 입력 (AU 단위)
+planet_orbit = st.slider("행성 궤도 반경 (AU)", 0.1, 5.0, 1.0, step=0.01)
 
-# 팽창 전 (gray)
-fig.add_trace(go.Scatter3d(
-    x=x0, y=y0, z=z0,
-    mode='markers',
-    marker=dict(size=3, color='lightgray'),
-    name='팽창 전'
-))
+# 생명가능지대 계산 (내부 경계와 외부 경계)
+hz_inner = np.sqrt(luminosity) * 0.95
+hz_outer = np.sqrt(luminosity) * 1.67
 
-# 팽창 후 (orange)
-fig.add_trace(go.Scatter3d(
-    x=x1, y=y1, z=z1,
-    mode='markers',
-    marker=dict(size=4, color='orange'),
-    name='팽창 후'
-))
+# 생명가능지대 내 여부 판단
+if hz_inner <= planet_orbit <= hz_outer:
+    habitability = "🌿 생명가능지대 내에 있습니다!"
+else:
+    habitability = "⚠️ 생명가능지대 밖에 있습니다."
 
-fig.update_layout(
-    scene=dict(
-        xaxis_title='X',
-        yaxis_title='Y',
-        zaxis_title='Z',
-        aspectmode='cube'
-    ),
-    title=f'우주 팽창: H₀={H0}, 시간={time}',
-    legend=dict(x=0.02, y=0.98)
-)
+# 결과 출력
+st.write(f"별의 생명가능지대는 약 {hz_inner:.2f} AU 에서 {hz_outer:.2f} AU 사이입니다.")
+st.write(f"행성 궤도 반경: {planet_orbit:.2f} AU")
+st.write(habitability)
 
-st.plotly_chart(fig)
+# 시각화
+fig, ax = plt.subplots(figsize=(6,6))
+# 별 그리기 (중앙)
+star = plt.Circle((0,0), 0.1, color='yellow', label='별')
+ax.add_artist(star)
 
+# 생명가능지대 표시 (투명한 링)
+hz_ring = plt.Circle((0,0), hz_outer, color='green', alpha=0.2)
+ax.add_artist(hz_ring)
+hz_ring_inner = plt.Circle((0,0), hz_inner, color='white', alpha=1)
+ax.add_artist(hz_ring_inner)
+
+# 행성 위치 표시
+planet = plt.Circle((planet_orbit, 0), 0.05, color='blue', label='행성')
+ax.add_artist(planet)
+
+ax.set_xlim(-2*hz_outer, 2*hz_outer)
+ax.set_ylim(-2*hz_outer, 2*hz_outer)
+ax.set_aspect('equal')
+ax.set_title("생명가능지대 시각화 (2D 평면)")
+ax.axis('off')
+
+st.pyplot(fig)
