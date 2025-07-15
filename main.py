@@ -33,7 +33,11 @@ uploaded_file = st.file_uploader("FITS 이미지 파일을 업로드하세요", 
 if uploaded_file is not None:
     try:
         # FITS 파일 열기
-        hdul = fits.open(uploaded_file)
+st.title("FITS.FZ 파일 업로드 및 열기")
+
+uploaded_file = st.file_uploader("FITS 또는 FITS.FZ 파일을 업로드하세요", type=["fits", "fz"])
+
+
         st.success("✅ FITS 파일 열기 성공!")
         
         # HDU 정보 출력
